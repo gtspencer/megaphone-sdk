@@ -1,12 +1,7 @@
-import type { Address, Hash, Hex } from "viem";
+import type { Address } from "viem";
 import type { Config } from "wagmi";
-import {
-  readContract,
-  waitForTransactionReceipt,
-  writeContract
-} from "wagmi/actions";
+import { waitForTransactionReceipt, writeContract } from "wagmi/actions";
 
-import { erc20Abi } from "./abi/erc20";
 import { megaphoneAbi } from "./abi/megaphone";
 import {
   BASE_CHAIN_ID,
@@ -14,64 +9,22 @@ import {
   MEGAPHONE_CONTRACT_ADDRESS,
   USDC_CONTRACT_ADDRESS
 } from "./constants";
-import type { AvailableDay } from "./types";
-
-const DAY_IN_SECONDS = 86_400n;
-const MAX_SAFE_MS = BigInt(Number.MAX_SAFE_INTEGER);
-
-type AuctionResult = readonly [
-  bigint,
-  boolean,
-  bigint,
-  bigint,
-  Address,
-  bigint,
-  bigint,
-  bigint,
-  boolean,
-  bigint,
-  bigint
-];
-
-type SettingsResult = readonly [
-  Address,
-  Address,
-  bigint,
-  bigint,
-  boolean,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  boolean,
-  Address,
-  bigint,
-  bigint
-];
-
-export interface MegaphoneOptions {
-  apiKey?: string;
-}
-
-interface PreBuyBaseParams {
-  auctionId: bigint;
-  fid: bigint;
-  name: string;
-  account: Address;
-  config: Config;
-}
-
-export interface PreBuyParams extends PreBuyBaseParams {}
-
-export interface PreBuyWithRevShareParams extends PreBuyBaseParams {
-  referrer: Address;
-}
-
-export interface GetAvailableDaysParams {
-  config: Config;
-}
+import { requestRevShareSignature } from "./internal/api";
+import {
+  approveUsdc,
+  readCurrentAuctionTokenId,
+  readPreBuyAmount,
+  readSettings,
+  type ContractContext
+} from "./internal/contract";
+import { addDays, toDateOrThrow } from "./utils/time";
+import type {
+  AvailableDay,
+  GetAvailableDaysParams,
+  MegaphoneOptions,
+  PreBuyParams,
+  PreBuyWithRevShareParams
+} from "./types";
 
 export class Megaphone {
   private readonly apiKey?: string;
@@ -102,10 +55,10 @@ export class Megaphone {
 
   async preBuy(params: PreBuyParams): Promise<boolean> {
     const { auctionId, fid, name, account, config } = params;
+    const context = this.createContractContext(config);
 
-    const amount = await this.getPreBuyAmount(config);
-
-    await this.approve(config, account, amount);
+    const amount = await readPreBuyAmount(context);
+    await approveUsdc(context, account, amount);
 
     const transactionHash = await writeContract(config, {
       address: this.contractAddress,
@@ -136,24 +89,21 @@ export class Megaphone {
       referrer
     } = params;
 
-    const apiKey = this.apiKey;
-    if (!apiKey) {
-      throw new Error(
-        "Megaphone requires an API key for rev share operations."
-      );
-    }
+    const apiKey = this.requireApiKey();
+    const context = this.createContractContext(config);
 
-    const amount = await this.getPreBuyAmount(config);
+    const amount = await readPreBuyAmount(context);
 
-    const signature = await this.fetchRevShareSignature({
+    const signature = await requestRevShareSignature({
+      baseUrl: this.baseUrl,
+      apiKey,
       amount,
       auctionId,
       fid,
-      referrer,
-      apiKey
+      referrer
     });
 
-    await this.approve(config, account, amount);
+    await approveUsdc(context, account, amount);
 
     const transactionHash = await writeContract(config, {
       address: this.contractAddress,
@@ -176,11 +126,11 @@ export class Megaphone {
     params: GetAvailableDaysParams
   ): Promise<AvailableDay[]> {
     const { config } = params;
+    const context = this.createContractContext(config);
 
-    const currentTokenId = await this.getCurrentAuctionTokenId(config);
-    const settings = await this.getSettings(config);
-
-    const { scheduledEndTime, minPreBuyId, maxPreBuyId } = settings;
+    const currentTokenId = await readCurrentAuctionTokenId(context);
+    const { scheduledEndTime, minPreBuyId, maxPreBuyId } =
+      await readSettings(context);
 
     if (minPreBuyId > maxPreBuyId) {
       return [];
@@ -198,126 +148,33 @@ export class Megaphone {
       }
 
       const auctionId = currentTokenId + offset;
-      const timestamp = scheduledEndTime + offset * DAY_IN_SECONDS;
-      const milliseconds = timestamp * 1000n;
-
-      if (milliseconds > MAX_SAFE_MS) {
-        throw new Error("Timestamp exceeds supported JavaScript date range.");
-      }
+      const timestamp = addDays(scheduledEndTime, offset);
 
       available.push({
         auctionId,
-        date: new Date(Number(milliseconds)),
-        timestamp
+        timestamp,
+        date: toDateOrThrow(timestamp)
       });
     }
 
     return available;
   }
 
-  private async fetchRevShareSignature(params: {
-    amount: bigint;
-    auctionId: bigint;
-    fid: bigint;
-    referrer: Address;
-    apiKey: string;
-  }): Promise<Hex> {
-    const endpoint = new URL("/rev-share/signature", this.baseUrl).toString();
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": params.apiKey
-      },
-      body: JSON.stringify({
-        amount: params.amount.toString(),
-        auctionId: params.auctionId.toString(),
-        fid: params.fid.toString(),
-        referrer: params.referrer
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch rev share signature: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const payload = (await response.json()) as {
-      signature?: string;
-    };
-
-    if (typeof payload?.signature !== "string") {
-      throw new Error(
-        "Rev share signature response is missing the signature field."
-      );
-    }
-
-    return payload.signature as Hex;
-  }
-
-  private async getPreBuyAmount(config: Config): Promise<bigint> {
-    return readContract(config, {
-      address: this.contractAddress,
-      abi: megaphoneAbi,
-      functionName: "getPreBuyAmount",
-      args: [],
-      chainId: this.chainId
-    });
-  }
-
-  private async getCurrentAuctionTokenId(config: Config): Promise<bigint> {
-    const auction = (await readContract(config, {
-      address: this.contractAddress,
-      abi: megaphoneAbi,
-      functionName: "auction",
-      args: [],
-      chainId: this.chainId
-    })) as AuctionResult;
-
-    return auction[0];
-  }
-
-  private async getSettings(config: Config): Promise<{
-    scheduledEndTime: bigint;
-    minPreBuyId: bigint;
-    maxPreBuyId: bigint;
-  }> {
-    const settings = (await readContract(config, {
-      address: this.contractAddress,
-      abi: megaphoneAbi,
-      functionName: "settings",
-      args: [],
-      chainId: this.chainId
-    })) as SettingsResult;
-
+  private createContractContext(config: Config): ContractContext {
     return {
-      scheduledEndTime: settings[5],
-      minPreBuyId: settings[9],
-      maxPreBuyId: settings[10]
+      config,
+      contractAddress: this.contractAddress,
+      usdcAddress: this.usdcAddress,
+      chainId: this.chainId
     };
   }
 
-  private async approve(
-    config: Config,
-    account: Address,
-    amount: bigint
-  ): Promise<Hash> {
-    const approveHash = await writeContract(config, {
-      address: this.usdcAddress,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [this.contractAddress, amount],
-      account,
-      chainId: this.chainId
-    });
-
-    await waitForTransactionReceipt(config, {
-      hash: approveHash,
-      chainId: this.chainId
-    });
-
-    return approveHash;
+  private requireApiKey(): string {
+    if (!this.apiKey) {
+      throw new Error(
+        "Megaphone requires an API key for rev share operations."
+      );
+    }
+    return this.apiKey;
   }
 }
