@@ -1,5 +1,5 @@
 {
-  "name": "megaphone-sdk-react",
+  "name": "0xmegaphone-sdk-react",
   "type": "module",
   "main": "../dist/react/index.cjs",
   "module": "../dist/react/index.mjs",

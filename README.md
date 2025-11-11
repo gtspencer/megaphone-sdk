@@ -5,7 +5,7 @@ TypeScript client for interacting with the Megaphone on-chain contracts on Base.
 ## Installation
 
 ```bash
-npm install megaphone-sdk
+npm install 0xmegaphone-sdk
 ```
 
 Peer dependencies expected in the host app:
@@ -19,7 +19,7 @@ npm install wagmi viem
 ```ts
 import { createConfig, http } from "wagmi";
 import { base } from "viem/chains";
-import { Megaphone } from "megaphone-sdk";
+import { Megaphone } from "0xmegaphone-sdk";
 
 const config = createConfig({
   chains: [base],
@@ -100,7 +100,7 @@ Install React peers if you plan to use the pre-built components:
 npm install react react-dom
 ```
 
-The React entry point lives at `megaphone-sdk/react` and reuses the same client
+The React entry point lives at `0xmegaphone-sdk/react` and reuses the same client
 logic under the hood. Wrap your app with `MegaphoneProvider` (or pass a
 `Megaphone` instance directly) and drop in the panels.
 
@@ -111,7 +111,7 @@ import {
   MegaphoneProvider,
   ReservePanel,
   TimelinePanel
-} from "megaphone-sdk/react";
+} from "0xmegaphone-sdk/react";
 
 const config = createConfig({
   chains: [base],
