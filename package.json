@@ -14,13 +14,14 @@
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.mjs",
-      "require": "./dist/react/index.cjs"
+      "import": "./react/index.js",
+      "require": "./react/index.cjs"
     },
     "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "react"
   ],
   "scripts": {
     "build:core": "tsup src/index.ts --format esm,cjs --dts --clean",

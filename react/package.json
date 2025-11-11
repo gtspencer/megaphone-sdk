@@ -1,0 +1,8 @@
+{
+  "name": "megaphone-sdk-react",
+  "type": "module",
+  "main": "../dist/react/index.cjs",
+  "module": "../dist/react/index.mjs",
+  "types": "../dist/react/index.d.ts"
+}
+
