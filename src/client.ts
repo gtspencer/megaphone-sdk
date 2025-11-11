@@ -160,6 +160,11 @@ export class Megaphone {
     return available;
   }
 
+  async getPreBuyAmount(config: Config): Promise<bigint> {
+    const context = this.createContractContext(config);
+    return readPreBuyAmount(context);
+  }
+
   private createContractContext(config: Config): ContractContext {
     return {
       config,

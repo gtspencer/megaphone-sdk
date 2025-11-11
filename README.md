@@ -91,3 +91,63 @@ availableDays.forEach(({ auctionId, date }) => {
 
 Each entry also exposes the raw Unix timestamp (seconds) for other time-zone or
 formatting use cases.
+
+## React UI (optional)
+
+Install React peers if you plan to use the pre-built components:
+
+```bash
+npm install react react-dom
+```
+
+The React entry point lives at `megaphone-sdk/react` and reuses the same client
+logic under the hood. Wrap your app with `MegaphoneProvider` (or pass a
+`Megaphone` instance directly) and drop in the panels.
+
+```tsx
+import { createConfig, http } from "wagmi";
+import { base } from "viem/chains";
+import {
+  MegaphoneProvider,
+  ReservePanel,
+  TimelinePanel
+} from "megaphone-sdk/react";
+
+const config = createConfig({
+  chains: [base],
+  transports: {
+    [base.id]: http()
+  }
+});
+
+function App() {
+  return (
+    <TimelinePanel
+        config={config}
+        account={"0xabc123..." as `0x${string}`}
+        fid={1768n}
+        name="Alice"
+      />
+      
+    <MegaphoneProvider apiKey={process.env.MEGAPHONE_API_KEY}>
+      <ReservePanel
+        config={config}
+        account={"0xabc123..." as `0x${string}`}
+        fid={1768n}
+        name="Alice"
+        showAuctionIdInput
+      />
+    </MegaphoneProvider>
+  );
+}
+```
+
+- `ReservePanel` shows a single “Reserve the Megaphone” button (with optional
+  auction-id input and customizable label) and calls the appropriate pre-buy
+  method on click.
+- `TimelinePanel` lists available pre-buy days, lets the user select one, and
+  renders the same purchase button below the timeline.
+
+Both panels default to the non–rev share flow unless an API key (and referrer)
+is supplied; they expose `onSuccess` / `onError` callbacks and accept an
+existing `Megaphone` instance if you prefer not to use the provider.

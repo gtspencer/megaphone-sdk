@@ -12,19 +12,28 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.mjs",
+      "require": "./dist/react/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
-    "typecheck": "tsc --noEmit",
+    "build:core": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "build:react": "tsup src/react/index.ts --format esm,cjs --dts --out-dir dist/react --tsconfig tsconfig.react.json",
+    "build": "npm run build:core && npm run build:react",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.react.json --noEmit",
     "test": "echo \"No tests yet\" && exit 0"
   },
   "peerDependencies": {
     "viem": "^2.0.0",
-    "wagmi": "^2.0.0"
+    "wagmi": "^2.0.0",
+    "react": ">=18.0.0 <20",
+    "react-dom": ">=18.0.0 <20"
   },
   "repository": {
     "type": "git",
@@ -38,6 +47,10 @@
   },
   "homepage": "https://github.com/gtspencer/megaphone-sdk#readme",
   "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "viem": "^2.19.6",
