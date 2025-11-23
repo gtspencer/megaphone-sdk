@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 
 import type { Megaphone } from "../../client";
-import type { AvailableDay, GetAvailableDaysParams } from "../../types";
+import type { GetPreBuyWindowParams, PreBuyWindowDay } from "../../types";
 
-interface UseAvailableDaysResult {
-  days: AvailableDay[];
+interface UsePreBuyWindowResult {
+  days: PreBuyWindowDay[];
   loading: boolean;
   error: Error | null;
 }
 
-export function useAvailableDays(
+export function usePreBuyWindow(
   client: Megaphone | undefined,
-  params: GetAvailableDaysParams | undefined
-): UseAvailableDaysResult {
-  const [days, setDays] = useState<AvailableDay[]>([]);
+  params: GetPreBuyWindowParams | undefined
+): UsePreBuyWindowResult {
+  const [days, setDays] = useState<PreBuyWindowDay[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -32,7 +32,7 @@ export function useAvailableDays(
     async function load() {
       setLoading(true);
       try {
-        const result = await currentClient.getAvailableDays(currentParams);
+        const result = await currentClient.getPreBuyWindow(currentParams);
         if (!cancelled) {
           setDays(result);
           setError(null);

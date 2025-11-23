@@ -5,11 +5,10 @@ import { formatUnits } from "viem";
 import { useConfig } from "wagmi";
 
 import type { Megaphone } from "../../client";
-import type { AvailableDay, MegaphoneOptions } from "../../types";
+import type { MegaphoneOptions, PreBuyWindowDay } from "../../types";
 import { simplifyErrorMessage } from "../../utils/errors";
 import { useMegaphoneClient } from "../hooks/useMegaphoneClient";
 import { usePreBuyData } from "../hooks/usePreBuyData";
-import { addDays, normalizeTo12pmEST, toDateOrThrow } from "../../utils/time";
 
 export interface TimelinePanelProps {
   account: Address;
@@ -17,8 +16,8 @@ export interface TimelinePanelProps {
   name: string;
   referrer?: Address;
   renderDay?: (
-    day: AvailableDay,
-    options: { selected: boolean; select: () => void }
+    day: PreBuyWindowDay,
+    options: { selected: boolean; select: () => void; isBought: boolean }
   ) => ReactNode;
   buttonText?: string;
   formatButtonLabel?: (amount: bigint) => string;
@@ -81,49 +80,43 @@ export function TimelinePanel({
     error: dataError
   } = usePreBuyData(megaphone, preBuyDataParams);
 
-  const days = useMemo<AvailableDay[]>(() => {
-    if (!preBuyData) {
-      return [];
+  const [days, setDays] = useState<PreBuyWindowDay[]>([]);
+  const [windowLoading, setWindowLoading] = useState(false);
+
+  useEffect(() => {
+    if (!megaphone || !wagmiConfig) {
+      setDays([]);
+      setWindowLoading(false);
+      return;
     }
 
-    const {
-      preBuyStatus,
-      minPreBuyId,
-      maxPreBuyId,
-      currentAuctionId,
-      currentAuctionEndTime
-    } = preBuyData;
+    let cancelled = false;
 
-    if (minPreBuyId > maxPreBuyId || preBuyStatus.length === 0) {
-      return [];
-    }
-
-    // Normalize the current auction end time to 12pm EST for "today"
-    const baseTimestamp = normalizeTo12pmEST(currentAuctionEndTime);
-    const allDays: AvailableDay[] = [];
-
-    for (let i = 0; i < preBuyStatus.length; i++) {
-      const isBought = preBuyStatus[i];
-      const offset = minPreBuyId + BigInt(i);
-      
-      if (offset <= 0n) {
-        continue;
+    async function loadWindow() {
+      setWindowLoading(true);
+      try {
+        const result = await megaphone.getPreBuyWindow({ config: wagmiConfig });
+        if (!cancelled) {
+          setDays(result);
+        }
+      } catch (err) {
+        // Error will be handled by dataError from usePreBuyData
+        if (!cancelled) {
+          setDays([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setWindowLoading(false);
+        }
       }
-
-      const auctionId = currentAuctionId + offset;
-      // Add the offset days to the normalized base timestamp
-      const timestamp = addDays(baseTimestamp, offset);
-
-      allDays.push({
-        auctionId,
-        timestamp,
-        date: toDateOrThrow(timestamp),
-        isBought
-      });
     }
 
-    return allDays;
-  }, [preBuyData]);
+    loadWindow();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [megaphone, wagmiConfig]);
 
   const amount = preBuyData?.currentPreBuyPrice ?? null;
 
@@ -134,20 +127,20 @@ export function TimelinePanel({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Only select from available (non-bought) days
-    const availableDays = days.filter((day) => !day.isBought);
+    // Only select from available days
+    const availableDays = days.filter((day) => day.available);
     
     if (availableDays.length === 0) {
       setSelectedAuctionId(null);
       return;
     }
     
-    // If current selection is invalid (bought or doesn't exist), select first available
+    // If current selection is invalid (not available or doesn't exist), select first available
     const currentDay = days.find((day) => day.auctionId === selectedAuctionId);
     if (
       selectedAuctionId === null ||
       !currentDay ||
-      currentDay.isBought
+      !currentDay.available
     ) {
       setSelectedAuctionId(availableDays[0]?.auctionId ?? null);
     }
@@ -173,7 +166,7 @@ export function TimelinePanel({
     return loadingText;
   }, [buttonText, amount, formatButtonLabel, amountLabel, loadingText]);
 
-  const isLoading = dataLoading || submitting;
+  const isLoading = dataLoading || windowLoading || submitting;
   const selectedDay = days.find((day) => day.auctionId === selectedAuctionId);
   const readyToReserve =
     !disabled &&
@@ -181,7 +174,7 @@ export function TimelinePanel({
     amount != null &&
     selectedAuctionId != null &&
     selectedDay != null &&
-    !selectedDay.isBought;
+    selectedDay.available;
 
   const activeError = submitError
     ? submitError
@@ -253,9 +246,9 @@ export function TimelinePanel({
           >
             {days.map((day) => {
               const selected = day.auctionId === selectedAuctionId;
-              const isBought = day.isBought;
+              const isBought = !day.available;
               const onSelect = () => {
-                if (!isBought) {
+                if (day.available) {
                   setSelectedAuctionId(day.auctionId);
                 }
               };
@@ -263,12 +256,12 @@ export function TimelinePanel({
               return (
                 <li key={day.auctionId.toString()}>
                   {renderDay ? (
-                    renderDay(day, { selected, select: onSelect })
+                    renderDay(day, { selected, select: onSelect, isBought })
                   ) : (
                     <button
                       type="button"
                       onClick={onSelect}
-                      disabled={isBought}
+                      disabled={!day.available}
                       style={{
                         padding: "0.375rem 0.5rem",
                         borderRadius: "0.5rem",
@@ -277,16 +270,16 @@ export function TimelinePanel({
                           : "1px solid #ccc",
                         backgroundColor: selected
                           ? "#000"
-                          : isBought
+                          : !day.available
                             ? "#f0f0f0"
                             : "transparent",
                         color: selected
                           ? "#fff"
-                          : isBought
+                          : !day.available
                             ? "#999"
                             : "inherit",
-                        cursor: isBought ? "not-allowed" : "pointer",
-                        opacity: isBought ? 0.6 : 1,
+                        cursor: !day.available ? "not-allowed" : "pointer",
+                        opacity: !day.available ? 0.6 : 1,
                         fontSize: "0.875rem"
                       }}
                     >

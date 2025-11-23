@@ -2,6 +2,16 @@
 
 TypeScript client for interacting with the Megaphone on-chain contracts on Base.
 
+This implementation includes a core sdk, and a react sub-package.
+
+### Core
+- Pre buy auction days (with rev share if used with API key - request one from @0xspencer on Farcaster and TBA)
+- Incentivized interactions
+  - Current auction winner can include these calls for any actions taken in their miniapp, which increases the user score
+
+### React
+- Pre buy timeline view
+
 ## Installation
 
 ```bash
@@ -30,7 +40,7 @@ const config = createConfig({
 
 const megaphone = new Megaphone({
   operatorFid: 1768n, // Required: Your operator FID
-  apiKey: process.env.MEGAPHONE_API_KEY, // Optional: Required for rev-share operations
+  apiKey: process.env.MEGAPHONE_API_KEY, // Optional: Required for rev-share and incentivized interactions
   isTestnet: false, // Optional: Use Base Sepolia testnet (default: false)
   debug: false, // Optional: Show full error messages (default: false)
   referrer: "0x..." as `0x${string}` // Optional: Default referrer address
@@ -133,24 +143,25 @@ const result = await megaphone.recordIncentivizedInteraction({
 
 ## Utility Methods
 
-### `getAvailableDays`
+### `getPreBuyWindow`
 
-Returns the future auctions that can be pre-bought along with their local dates.
+Returns the current pre-buy window with availability status for each auction day.
 
 **Parameters:**
 - **`config`** (required): `Config` - Wagmi configuration
 
-**Returns:** Array of `AvailableDay` objects with:
+**Returns:** Array of `PreBuyWindowDay` objects with:
 - `auctionId`: `bigint` - The auction ID
-- `date`: `Date` - The date in local timezone
+- `available`: `boolean` - Whether this auction is available for pre-buy
+- `date`: `Date` - The date in local timezone (normalized to 12pm EST)
 - `timestamp`: `bigint` - Unix timestamp in seconds
-- `isBought`: `boolean` - Whether this auction is already pre-bought
 
 ```ts
-const availableDays = await megaphone.getAvailableDays({ config });
+const window = await megaphone.getPreBuyWindow({ config });
 
-availableDays.forEach(({ auctionId, date, isBought }) => {
-  console.log(`Auction ${auctionId} ends on ${date.toLocaleString()}, bought: ${isBought}`);
+window.forEach(({ auctionId, available, date, timestamp }) => {
+  console.log(`Auction ${auctionId} on ${date.toLocaleDateString()}: ${available ? 'Available' : 'Sold'}`);
+  console.log(`Timestamp: ${timestamp}`);
 });
 ```
 

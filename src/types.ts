@@ -23,15 +23,15 @@ export interface PreBuyWithRevShareParams extends PreBuyBaseParams {
   referrer: Address;
 }
 
-export interface GetAvailableDaysParams {
+export interface GetPreBuyWindowParams {
   config: Config;
 }
 
-export interface AvailableDay {
+export interface PreBuyWindowDay {
   auctionId: bigint;
+  available: boolean;
   date: Date;
   timestamp: bigint;
-  isBought: boolean;
 }
 
 export interface PreBuyData {

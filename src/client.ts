@@ -25,12 +25,12 @@ import {
 } from "./internal/contract";
 import { addDays, normalizeTo12pmEST, toDateOrThrow } from "./utils/time";
 import type {
-  AvailableDay,
-  GetAvailableDaysParams,
   GetPreBuyDataParams,
+  GetPreBuyWindowParams,
   MegaphoneOptions,
   PreBuyData,
   PreBuyParams,
+  PreBuyWindowDay,
   PreBuyWithRevShareParams,
   RecordIncentivizedInteractionParams
 } from "./types";
@@ -173,9 +173,20 @@ export class Megaphone {
     return success;
   }
 
-  async getAvailableDays(
-    params: GetAvailableDaysParams
-  ): Promise<AvailableDay[]> {
+  async getPreBuyData(params: GetPreBuyDataParams): Promise<PreBuyData> {
+    const { config } = params;
+    const context = this.createContractContext(config);
+    return readPreBuyData(context);
+  }
+
+  async getPreBuyAmount(config: Config): Promise<bigint> {
+    const context = this.createContractContext(config);
+    return readPreBuyAmount(context);
+  }
+
+  async getPreBuyWindow(
+    params: GetPreBuyWindowParams
+  ): Promise<PreBuyWindowDay[]> {
     const { config } = params;
     const context = this.createContractContext(config);
 
@@ -194,7 +205,7 @@ export class Megaphone {
 
     // Normalize the current auction end time to 12pm EST for "today"
     const baseTimestamp = normalizeTo12pmEST(currentAuctionEndTime);
-    const allDays: AvailableDay[] = [];
+    const window: PreBuyWindowDay[] = [];
 
     for (let i = 0; i < preBuyStatus.length; i++) {
       const isBought = preBuyStatus[i];
@@ -208,26 +219,15 @@ export class Megaphone {
       // Add the offset days to the normalized base timestamp
       const timestamp = addDays(baseTimestamp, offset);
 
-      allDays.push({
+      window.push({
         auctionId,
-        timestamp,
+        available: !isBought,
         date: toDateOrThrow(timestamp),
-        isBought
+        timestamp
       });
     }
 
-    return allDays;
-  }
-
-  async getPreBuyData(params: GetPreBuyDataParams): Promise<PreBuyData> {
-    const { config } = params;
-    const context = this.createContractContext(config);
-    return readPreBuyData(context);
-  }
-
-  async getPreBuyAmount(config: Config): Promise<bigint> {
-    const context = this.createContractContext(config);
-    return readPreBuyAmount(context);
+    return window;
   }
 
   async recordIncentivizedInteraction(
