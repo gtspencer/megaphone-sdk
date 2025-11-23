@@ -24,7 +24,7 @@ export async function requestRevShareSignature(
   params: RevShareSignatureRequest
 ): Promise<Hex> {
   const endpoint = new URL(
-    "pre-buy/generate-signature",
+    "/api/pre-buy/generate-signature",
     params.baseUrl
   ).toString();
 
@@ -77,7 +77,7 @@ export async function requestRevShareSignature(
 export async function reportPreBuy(
   params: ReportPreBuyRequest
 ): Promise<void> {
-  const endpoint = new URL("pre-buy/report-pre-buy", params.baseUrl).toString();
+  const endpoint = new URL("/api/pre-buy/report-pre-buy", params.baseUrl).toString();
 
   const body: Record<string, unknown> = {
     auctionId: Number(params.auctionId),
@@ -132,7 +132,7 @@ export async function recordIncentivizedInteraction(
   params: RecordIncentivizedInteractionRequest
 ): Promise<RecordIncentivizedInteractionResponse> {
   const endpoint = new URL(
-    "incentivized-interaction",
+    "/api/incentivized-interaction",
     params.baseUrl
   ).toString();
 

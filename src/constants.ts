@@ -15,4 +15,4 @@ export const USDC_CONTRACT_ADDRESS: Address =
 export const USDC_SEPOLIA_CONTRACT_ADDRESS: Address =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
-export const BASE_URL = "https://megaphone-backend-staging.up.railway.app/api/";
+export const BASE_URL = "https://megaphone-backend-staging.up.railway.app";
