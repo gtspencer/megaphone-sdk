@@ -1,6 +1,6 @@
 {
   "name": "0xmegaphone-sdk",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "build:core": "tsup src/index.ts --format esm,cjs --dts --clean",
-    "build:react": "tsup src/react/index.ts --format esm,cjs --dts --out-dir dist/react --tsconfig tsconfig.react.json",
+    "build:react": "tsup --config tsup.react.config.ts",
     "build": "npm run build:core && npm run build:react",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.react.json --noEmit",
     "test": "echo \"No tests yet\" && exit 0"

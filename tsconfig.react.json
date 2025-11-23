@@ -4,7 +4,7 @@
     "jsx": "react-jsx",
     "rootDir": "src"
   },
-  "include": ["src/react"],
+  "include": ["src/react", "src/svg.d.ts"],
   "exclude": ["dist", "node_modules", "src/contracts"]
 }
 
