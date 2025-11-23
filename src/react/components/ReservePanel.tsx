@@ -13,6 +13,7 @@ import { useConfig } from "wagmi";
 
 import type { Megaphone } from "../../client";
 import type { MegaphoneOptions } from "../../types";
+import { simplifyErrorMessage } from "../../utils/errors";
 import { useMegaphoneClient } from "../hooks/useMegaphoneClient";
 import { usePreBuyAmount } from "../hooks/usePreBuyAmount";
 
@@ -83,6 +84,8 @@ export function ReservePanel({
     operatorFid: clientOptions?.operatorFid
   });
 
+  const debug = clientOptions?.debug ?? false;
+
   const { amount, loading: amountLoading, error: amountError } =
     usePreBuyAmount(megaphone, wagmiConfig);
 
@@ -133,7 +136,11 @@ export function ReservePanel({
     amount == null ||
     amountLoading;
 
-  const activeError = submitError ?? amountError?.message ?? null;
+  const activeError = submitError
+    ? submitError
+    : amountError
+      ? simplifyErrorMessage(amountError, debug)
+      : null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,8 +178,7 @@ export function ReservePanel({
 
       onSuccess?.({ auctionId: resolvedAuctionId, success });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = simplifyErrorMessage(error, debug);
       setSubmitError(message);
       onError?.(error);
     } finally {

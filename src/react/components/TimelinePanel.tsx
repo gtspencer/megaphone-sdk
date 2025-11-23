@@ -6,6 +6,7 @@ import { useConfig } from "wagmi";
 
 import type { Megaphone } from "../../client";
 import type { AvailableDay, MegaphoneOptions } from "../../types";
+import { simplifyErrorMessage } from "../../utils/errors";
 import { useMegaphoneClient } from "../hooks/useMegaphoneClient";
 import { usePreBuyData } from "../hooks/usePreBuyData";
 import { addDays, normalizeTo12pmEST, toDateOrThrow } from "../../utils/time";
@@ -66,6 +67,8 @@ export function TimelinePanel({
     isTestnet: clientOptions?.isTestnet,
     operatorFid: clientOptions?.operatorFid
   });
+
+  const debug = clientOptions?.debug ?? false;
 
   const preBuyDataParams = useMemo(
     () => ({ config: wagmiConfig }),
@@ -180,7 +183,11 @@ export function TimelinePanel({
     selectedDay != null &&
     !selectedDay.isBought;
 
-  const activeError = submitError ?? dataError?.message ?? null;
+  const activeError = submitError
+    ? submitError
+    : dataError
+      ? simplifyErrorMessage(dataError, debug)
+      : null;
 
   async function handleReserve() {
     const auctionId = selectedAuctionId;
@@ -218,8 +225,7 @@ export function TimelinePanel({
 
       onSuccess?.({ auctionId, success });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = simplifyErrorMessage(error, debug);
       setSubmitError(message);
       onError?.(error);
     } finally {
