@@ -31,7 +31,6 @@ export interface TimelinePanelProps {
   onError?: (error: unknown) => void;
   client?: Megaphone;
   clientOptions?: MegaphoneOptions;
-  isTestnet?: boolean;
 }
 
 function defaultFormatAmount(amount: bigint): string {
@@ -57,18 +56,14 @@ export function TimelinePanel({
   onSuccess,
   onError,
   client,
-  clientOptions,
-  isTestnet
+  clientOptions
 }: TimelinePanelProps) {
   const wagmiConfig = useConfig();
-
-  const effectiveIsTestnet =
-    clientOptions?.isTestnet ?? isTestnet ?? false;
 
   const megaphone = useMegaphoneClient({
     client,
     apiKey: clientOptions?.apiKey,
-    isTestnet: effectiveIsTestnet,
+    isTestnet: clientOptions?.isTestnet,
     operatorFid: clientOptions?.operatorFid
   });
 

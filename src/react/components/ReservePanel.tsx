@@ -35,7 +35,6 @@ export interface ReservePanelProps {
   onError?: (error: unknown) => void;
   client?: Megaphone;
   clientOptions?: MegaphoneOptions;
-  isTestnet?: boolean;
 }
 
 function defaultFormatAmount(amount: bigint): string {
@@ -73,18 +72,14 @@ export function ReservePanel({
   onSuccess,
   onError,
   client,
-  clientOptions,
-  isTestnet
+  clientOptions
 }: ReservePanelProps) {
   const wagmiConfig = useConfig();
-
-  const effectiveIsTestnet =
-    clientOptions?.isTestnet ?? isTestnet ?? false;
 
   const megaphone = useMegaphoneClient({
     client,
     apiKey: clientOptions?.apiKey,
-    isTestnet: effectiveIsTestnet,
+    isTestnet: clientOptions?.isTestnet,
     operatorFid: clientOptions?.operatorFid
   });
 
