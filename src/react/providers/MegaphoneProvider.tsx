@@ -1,5 +1,4 @@
-import type { PropsWithChildren } from "react";
-import { useMemo } from "react";
+import React, { useMemo, type PropsWithChildren } from "react";
 
 import type { MegaphoneOptions } from "../../types";
 import { Megaphone } from "../../client";
@@ -11,10 +10,12 @@ export function MegaphoneProvider({
   children,
   ...options
 }: PropsWithChildren<MegaphoneProviderProps>) {
+  const { apiKey } = options;
+
   const value = useMemo(() => {
     const client = new Megaphone(options);
     return { client };
-  }, [options.apiKey]);
+  }, [apiKey, options.isTestnet]);
 
   return (
     <MegaphoneContext.Provider value={value}>

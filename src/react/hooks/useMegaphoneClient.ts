@@ -13,7 +13,7 @@ export function useMegaphoneClient(
   override?: UseMegaphoneClientOptions
 ): Megaphone {
   const context = useMegaphoneContext();
-  const { client, apiKey } = override ?? {};
+  const { client, apiKey, isTestnet } = override ?? {};
 
   return useMemo(() => {
     if (client) {
@@ -22,7 +22,7 @@ export function useMegaphoneClient(
     if (context) {
       return context.client;
     }
-    return new MegaphoneClass({ apiKey });
-  }, [client, context, apiKey]);
+    return new MegaphoneClass({ apiKey, isTestnet });
+  }, [client, context, apiKey, isTestnet]);
 }
 

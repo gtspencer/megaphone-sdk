@@ -1,18 +1,16 @@
-import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import React, { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 
 import type { Address } from "viem";
 import { formatUnits } from "viem";
-import type { Config } from "wagmi";
+import { useConfig } from "wagmi";
 
 import type { Megaphone } from "../../client";
 import type { AvailableDay, MegaphoneOptions } from "../../types";
 import { useMegaphoneClient } from "../hooks/useMegaphoneClient";
-import { usePreBuyAmount } from "../hooks/usePreBuyAmount";
-import { useAvailableDays } from "../hooks/useAvailableDays";
+import { usePreBuyData } from "../hooks/usePreBuyData";
+import { addDays, normalizeTo12pmEST, toDateOrThrow } from "../../utils/time";
 
 export interface TimelinePanelProps {
-  config: Config;
   account: Address;
   fid: bigint;
   name: string;
@@ -33,6 +31,7 @@ export interface TimelinePanelProps {
   onError?: (error: unknown) => void;
   client?: Megaphone;
   clientOptions?: MegaphoneOptions;
+  isTestnet?: boolean;
 }
 
 function defaultFormatAmount(amount: bigint): string {
@@ -40,7 +39,6 @@ function defaultFormatAmount(amount: bigint): string {
 }
 
 export function TimelinePanel({
-  config,
   account,
   fid,
   name,
@@ -57,26 +55,76 @@ export function TimelinePanel({
   onSuccess,
   onError,
   client,
-  clientOptions
+  clientOptions,
+  isTestnet
 }: TimelinePanelProps) {
+  const wagmiConfig = useConfig();
+
+  const effectiveIsTestnet =
+    clientOptions?.isTestnet ?? isTestnet ?? false;
+
   const megaphone = useMegaphoneClient({
     client,
-    apiKey: clientOptions?.apiKey
+    apiKey: clientOptions?.apiKey,
+    isTestnet: effectiveIsTestnet
   });
 
-  const { amount, loading: amountLoading, error: amountError } =
-    usePreBuyAmount(megaphone, config);
-
-  const availableDaysParams = useMemo(
-    () => ({ config }),
-    [config]
+  const preBuyDataParams = useMemo(
+    () => ({ config: wagmiConfig }),
+    [wagmiConfig]
   );
 
   const {
-    days,
-    loading: daysLoading,
-    error: daysError
-  } = useAvailableDays(megaphone, availableDaysParams);
+    data: preBuyData,
+    loading: dataLoading,
+    error: dataError
+  } = usePreBuyData(megaphone, preBuyDataParams);
+
+  const days = useMemo<AvailableDay[]>(() => {
+    if (!preBuyData) {
+      return [];
+    }
+
+    const {
+      preBuyStatus,
+      minPreBuyId,
+      maxPreBuyId,
+      currentAuctionId,
+      currentAuctionEndTime
+    } = preBuyData;
+
+    if (minPreBuyId > maxPreBuyId || preBuyStatus.length === 0) {
+      return [];
+    }
+
+    // Normalize the current auction end time to 12pm EST for "today"
+    const baseTimestamp = normalizeTo12pmEST(currentAuctionEndTime);
+    const allDays: AvailableDay[] = [];
+
+    for (let i = 0; i < preBuyStatus.length; i++) {
+      const isBought = preBuyStatus[i];
+      const offset = minPreBuyId + BigInt(i);
+      
+      if (offset <= 0n) {
+        continue;
+      }
+
+      const auctionId = currentAuctionId + offset;
+      // Add the offset days to the normalized base timestamp
+      const timestamp = addDays(baseTimestamp, offset);
+
+      allDays.push({
+        auctionId,
+        timestamp,
+        date: toDateOrThrow(timestamp),
+        isBought
+      });
+    }
+
+    return allDays;
+  }, [preBuyData]);
+
+  const amount = preBuyData?.currentPreBuyPrice ?? null;
 
   const [selectedAuctionId, setSelectedAuctionId] = useState<bigint | null>(
     null
@@ -85,15 +133,22 @@ export function TimelinePanel({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (days.length === 0) {
+    // Only select from available (non-bought) days
+    const availableDays = days.filter((day) => !day.isBought);
+    
+    if (availableDays.length === 0) {
       setSelectedAuctionId(null);
       return;
     }
+    
+    // If current selection is invalid (bought or doesn't exist), select first available
+    const currentDay = days.find((day) => day.auctionId === selectedAuctionId);
     if (
       selectedAuctionId === null ||
-      !days.some((day) => day.auctionId === selectedAuctionId)
+      !currentDay ||
+      currentDay.isBought
     ) {
-      setSelectedAuctionId(days[0]?.auctionId ?? null);
+      setSelectedAuctionId(availableDays[0]?.auctionId ?? null);
     }
   }, [days, selectedAuctionId]);
 
@@ -117,25 +172,21 @@ export function TimelinePanel({
     return loadingText;
   }, [buttonText, amount, formatButtonLabel, amountLabel, loadingText]);
 
-  const isLoading = amountLoading || daysLoading || submitting;
+  const isLoading = dataLoading || submitting;
+  const selectedDay = days.find((day) => day.auctionId === selectedAuctionId);
   const readyToReserve =
     !disabled &&
     !isLoading &&
     amount != null &&
     selectedAuctionId != null &&
-    days.length > 0;
+    selectedDay != null &&
+    !selectedDay.isBought;
 
-  const activeError =
-    submitError ?? amountError?.message ?? daysError?.message ?? null;
+  const activeError = submitError ?? dataError?.message ?? null;
 
   async function handleReserve() {
     const auctionId = selectedAuctionId;
-    if (
-      auctionId == null ||
-      amount == null ||
-      amountLoading ||
-      daysLoading
-    ) {
+    if (auctionId == null || amount == null || dataLoading) {
       return;
     }
 
@@ -152,7 +203,7 @@ export function TimelinePanel({
             fid,
             name,
             account,
-            config,
+            config: wagmiConfig,
             referrer: referrer!
           })
         : await megaphone.preBuy({
@@ -160,7 +211,7 @@ export function TimelinePanel({
             fid,
             name,
             account,
-            config
+            config: wagmiConfig
           });
 
       if (!success) {
@@ -181,7 +232,7 @@ export function TimelinePanel({
   return (
     <div className={className} style={style} aria-busy={isLoading}>
       <div style={{ marginBottom: "1rem" }}>
-        {daysLoading ? (
+        {dataLoading ? (
           <p>{loadingText}</p>
         ) : days.length === 0 ? (
           <p>{emptyText}</p>
@@ -198,7 +249,12 @@ export function TimelinePanel({
           >
             {days.map((day) => {
               const selected = day.auctionId === selectedAuctionId;
-              const onSelect = () => setSelectedAuctionId(day.auctionId);
+              const isBought = day.isBought;
+              const onSelect = () => {
+                if (!isBought) {
+                  setSelectedAuctionId(day.auctionId);
+                }
+              };
 
               return (
                 <li key={day.auctionId.toString()}>
@@ -208,20 +264,31 @@ export function TimelinePanel({
                     <button
                       type="button"
                       onClick={onSelect}
+                      disabled={isBought}
                       style={{
                         padding: "0.5rem 0.75rem",
                         borderRadius: "0.5rem",
                         border: selected
                           ? "2px solid #000"
                           : "1px solid #ccc",
-                        backgroundColor: selected ? "#000" : "transparent",
-                        color: selected ? "#fff" : "inherit",
-                        cursor: "pointer"
+                        backgroundColor: selected
+                          ? "#000"
+                          : isBought
+                            ? "#f0f0f0"
+                            : "transparent",
+                        color: selected
+                          ? "#fff"
+                          : isBought
+                            ? "#999"
+                            : "inherit",
+                        cursor: isBought ? "not-allowed" : "pointer",
+                        opacity: isBought ? 0.6 : 1
                       }}
                     >
                       <div>{day.date.toLocaleDateString()}</div>
                       <small style={{ display: "block" }}>
                         Auction #{day.auctionId.toString()}
+                        {isBought ? " (Sold)" : ""}
                       </small>
                     </button>
                   )}

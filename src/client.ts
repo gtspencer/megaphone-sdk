@@ -5,23 +5,27 @@ import { waitForTransactionReceipt, writeContract } from "wagmi/actions";
 import { megaphoneAbi } from "./abi/megaphone";
 import {
   BASE_CHAIN_ID,
+  BASE_SEPOLIA_CHAIN_ID,
   BASE_URL,
   MEGAPHONE_CONTRACT_ADDRESS,
-  USDC_CONTRACT_ADDRESS
+  MEGAPHONE_SEPOLIA_CONTRACT_ADDRESS,
+  USDC_CONTRACT_ADDRESS,
+  USDC_SEPOLIA_CONTRACT_ADDRESS
 } from "./constants";
 import { requestRevShareSignature } from "./internal/api";
 import {
   approveUsdc,
-  readCurrentAuctionTokenId,
   readPreBuyAmount,
-  readSettings,
+  readPreBuyData,
   type ContractContext
 } from "./internal/contract";
-import { addDays, toDateOrThrow } from "./utils/time";
+import { addDays, normalizeTo12pmEST, toDateOrThrow } from "./utils/time";
 import type {
   AvailableDay,
   GetAvailableDaysParams,
+  GetPreBuyDataParams,
   MegaphoneOptions,
+  PreBuyData,
   PreBuyParams,
   PreBuyWithRevShareParams
 } from "./types";
@@ -34,13 +38,19 @@ export class Megaphone {
   private readonly baseUrl: string;
 
   constructor(options: MegaphoneOptions = {}) {
-    const { apiKey } = options;
+    const { apiKey, isTestnet = false } = options;
 
     this.apiKey = apiKey;
     this.baseUrl = BASE_URL;
-    this.contractAddress = MEGAPHONE_CONTRACT_ADDRESS;
-    this.usdcAddress = USDC_CONTRACT_ADDRESS;
-    this.chainId = BASE_CHAIN_ID;
+    this.contractAddress = isTestnet
+      ? MEGAPHONE_SEPOLIA_CONTRACT_ADDRESS
+      : MEGAPHONE_CONTRACT_ADDRESS;
+    this.usdcAddress = isTestnet
+      ? USDC_SEPOLIA_CONTRACT_ADDRESS
+      : USDC_CONTRACT_ADDRESS;
+    this.chainId = isTestnet
+      ? BASE_SEPOLIA_CHAIN_ID
+      : BASE_CHAIN_ID;
   }
 
   get configuration() {
@@ -128,36 +138,50 @@ export class Megaphone {
     const { config } = params;
     const context = this.createContractContext(config);
 
-    const currentTokenId = await readCurrentAuctionTokenId(context);
-    const { scheduledEndTime, minPreBuyId, maxPreBuyId } =
-      await readSettings(context);
+    const preBuyData = await readPreBuyData(context);
+    const {
+      preBuyStatus,
+      minPreBuyId,
+      maxPreBuyId,
+      currentAuctionId,
+      currentAuctionEndTime
+    } = preBuyData;
 
-    if (minPreBuyId > maxPreBuyId) {
+    if (minPreBuyId > maxPreBuyId || preBuyStatus.length === 0) {
       return [];
     }
 
-    const available: AvailableDay[] = [];
+    // Normalize the current auction end time to 12pm EST for "today"
+    const baseTimestamp = normalizeTo12pmEST(currentAuctionEndTime);
+    const allDays: AvailableDay[] = [];
 
-    for (
-      let offset = minPreBuyId;
-      offset <= maxPreBuyId;
-      offset += 1n
-    ) {
+    for (let i = 0; i < preBuyStatus.length; i++) {
+      const isBought = preBuyStatus[i];
+      const offset = minPreBuyId + BigInt(i);
+      
       if (offset <= 0n) {
         continue;
       }
 
-      const auctionId = currentTokenId + offset;
-      const timestamp = addDays(scheduledEndTime, offset);
+      const auctionId = currentAuctionId + offset;
+      // Add the offset days to the normalized base timestamp
+      const timestamp = addDays(baseTimestamp, offset);
 
-      available.push({
+      allDays.push({
         auctionId,
         timestamp,
-        date: toDateOrThrow(timestamp)
+        date: toDateOrThrow(timestamp),
+        isBought
       });
     }
 
-    return available;
+    return allDays;
+  }
+
+  async getPreBuyData(params: GetPreBuyDataParams): Promise<PreBuyData> {
+    const { config } = params;
+    const context = this.createContractContext(config);
+    return readPreBuyData(context);
   }
 
   async getPreBuyAmount(config: Config): Promise<bigint> {

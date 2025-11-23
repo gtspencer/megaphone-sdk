@@ -5,7 +5,6 @@ import {
   waitForTransactionReceipt,
   writeContract
 } from "wagmi/actions";
-
 import { erc20Abi } from "../abi/erc20";
 import { megaphoneAbi } from "../abi/megaphone";
 
@@ -100,6 +99,24 @@ export async function readSettings(
     minPreBuyId: settings[9],
     maxPreBuyId: settings[10]
   };
+}
+
+import type { PreBuyData } from "../types";
+
+export async function readPreBuyData(
+  context: ContractContext
+): Promise<PreBuyData> {
+  const { config, contractAddress, chainId } = context;
+
+  const result = await readContract(config, {
+    address: contractAddress,
+    abi: megaphoneAbi,
+    functionName: "getPreBuyData",
+    args: [],
+    chainId
+  });
+
+  return result as PreBuyData;
 }
 
 export async function approveUsdc(

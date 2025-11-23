@@ -11,6 +11,7 @@ interface PreBuyBaseParams {
 
 export interface MegaphoneOptions {
   apiKey?: string;
+  isTestnet?: boolean;
 }
 
 export interface PreBuyParams extends PreBuyBaseParams {}
@@ -27,5 +28,19 @@ export interface AvailableDay {
   auctionId: bigint;
   date: Date;
   timestamp: bigint;
+  isBought: boolean;
+}
+
+export interface PreBuyData {
+  preBuyStatus: readonly boolean[];
+  minPreBuyId: bigint;
+  maxPreBuyId: bigint;
+  currentAuctionId: bigint;
+  currentAuctionEndTime: bigint;
+  currentPreBuyPrice: bigint;
+}
+
+export interface GetPreBuyDataParams {
+  config: Config;
 }
 

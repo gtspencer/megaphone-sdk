@@ -1,41 +1,40 @@
 import { useEffect, useState } from "react";
 
 import type { Megaphone } from "../../client";
-import type { Config } from "wagmi";
+import type { GetPreBuyDataParams, PreBuyData } from "../../types";
 
-interface UsePreBuyAmountResult {
-  amount: bigint | null;
+interface UsePreBuyDataResult {
+  data: PreBuyData | null;
   loading: boolean;
   error: Error | null;
 }
 
-export function usePreBuyAmount(
+export function usePreBuyData(
   client: Megaphone | undefined,
-  config: Config | undefined
-): UsePreBuyAmountResult {
-  const [amount, setAmount] = useState<bigint | null>(null);
+  params: GetPreBuyDataParams | undefined
+): UsePreBuyDataResult {
+  const [data, setData] = useState<PreBuyData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!client || !config) {
-      setAmount(null);
+    if (!client || !params?.config) {
+      setData(null);
       setError(null);
       setLoading(false);
       return;
     }
 
     const currentClient = client;
-    const currentConfig = config;
+    const currentParams = params;
     let cancelled = false;
 
     async function load() {
       setLoading(true);
       try {
-        // Use getPreBuyData for efficiency - it includes the price
-        const data = await currentClient.getPreBuyData({ config: currentConfig });
+        const result = await currentClient.getPreBuyData(currentParams);
         if (!cancelled) {
-          setAmount(data.currentPreBuyPrice);
+          setData(result);
           setError(null);
         }
       } catch (err) {
@@ -54,8 +53,8 @@ export function usePreBuyAmount(
     return () => {
       cancelled = true;
     };
-  }, [client, config]);
+  }, [client, params]);
 
-  return { amount, loading, error };
+  return { data, loading, error };
 }
 

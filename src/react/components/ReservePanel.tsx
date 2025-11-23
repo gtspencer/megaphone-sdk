@@ -1,13 +1,15 @@
-import type {
-  ButtonHTMLAttributes,
-  CSSProperties,
-  FormEvent
+import React, {
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useState
 } from "react";
-import { useEffect, useMemo, useState } from "react";
 
 import type { Address } from "viem";
 import { formatUnits } from "viem";
-import type { Config } from "wagmi";
+import { useConfig } from "wagmi";
 
 import type { Megaphone } from "../../client";
 import type { MegaphoneOptions } from "../../types";
@@ -15,7 +17,6 @@ import { useMegaphoneClient } from "../hooks/useMegaphoneClient";
 import { usePreBuyAmount } from "../hooks/usePreBuyAmount";
 
 export interface ReservePanelProps {
-  config: Config;
   account: Address;
   fid: bigint;
   name: string;
@@ -34,6 +35,7 @@ export interface ReservePanelProps {
   onError?: (error: unknown) => void;
   client?: Megaphone;
   clientOptions?: MegaphoneOptions;
+  isTestnet?: boolean;
 }
 
 function defaultFormatAmount(amount: bigint): string {
@@ -52,7 +54,6 @@ function parseAuctionId(value: string): bigint | null {
 }
 
 export function ReservePanel({
-  config,
   account,
   fid,
   name,
@@ -70,15 +71,22 @@ export function ReservePanel({
   onSuccess,
   onError,
   client,
-  clientOptions
+  clientOptions,
+  isTestnet
 }: ReservePanelProps) {
+  const wagmiConfig = useConfig();
+
+  const effectiveIsTestnet =
+    clientOptions?.isTestnet ?? isTestnet ?? false;
+
   const megaphone = useMegaphoneClient({
     client,
-    apiKey: clientOptions?.apiKey
+    apiKey: clientOptions?.apiKey,
+    isTestnet: effectiveIsTestnet
   });
 
   const { amount, loading: amountLoading, error: amountError } =
-    usePreBuyAmount(megaphone, config);
+    usePreBuyAmount(megaphone, wagmiConfig);
 
   const [auctionIdInput, setAuctionIdInput] = useState(
     auctionIdProp ? auctionIdProp.toString() : ""
@@ -148,7 +156,7 @@ export function ReservePanel({
             fid,
             name,
             account,
-            config,
+            config: wagmiConfig,
             referrer: referrer!
           })
         : await megaphone.preBuy({
@@ -156,7 +164,7 @@ export function ReservePanel({
             fid,
             name,
             account,
-            config
+            config: wagmiConfig
           });
 
       if (!success) {

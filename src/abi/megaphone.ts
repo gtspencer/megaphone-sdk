@@ -57,6 +57,27 @@ export const megaphoneAbi = [
   },
   {
     inputs: [],
+    name: "getPreBuyData",
+    outputs: [
+      {
+        components: [
+          { internalType: "bool[]", name: "preBuyStatus", type: "bool[]" },
+          { internalType: "uint256", name: "minPreBuyId", type: "uint256" },
+          { internalType: "uint256", name: "maxPreBuyId", type: "uint256" },
+          { internalType: "uint256", name: "currentAuctionId", type: "uint256" },
+          { internalType: "uint256", name: "currentAuctionEndTime", type: "uint256" },
+          { internalType: "uint256", name: "currentPreBuyPrice", type: "uint256" }
+        ],
+        internalType: "struct AuctionTypes.PreBuyData",
+        name: "",
+        type: "tuple"
+      }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
     name: "settings",
     outputs: [
       { internalType: "address", name: "usdcToken", type: "address" },

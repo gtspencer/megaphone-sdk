@@ -105,7 +105,8 @@ logic under the hood. Wrap your app with `MegaphoneProvider` (or pass a
 `Megaphone` instance directly) and drop in the panels.
 
 ```tsx
-import { createConfig, http } from "wagmi";
+import { WagmiProvider, createConfig, http } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { base } from "viem/chains";
 import {
   MegaphoneProvider,
@@ -113,31 +114,35 @@ import {
   TimelinePanel
 } from "0xmegaphone-sdk/react";
 
-const config = createConfig({
+const wagmiConfig = createConfig({
   chains: [base],
   transports: {
     [base.id]: http()
   }
 });
 
+const queryClient = new QueryClient();
+
 function App() {
   return (
-    <TimelinePanel
-        config={config}
-        account={"0xabc123..." as `0x${string}`}
-        fid={1768n}
-        name="Alice"
-      />
-      
-    <MegaphoneProvider apiKey={process.env.MEGAPHONE_API_KEY}>
-      <ReservePanel
-        config={config}
-        account={"0xabc123..." as `0x${string}`}
-        fid={1768n}
-        name="Alice"
-        showAuctionIdInput
-      />
-    </MegaphoneProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <MegaphoneProvider apiKey={process.env.MEGAPHONE_API_KEY}>
+          <TimelinePanel
+            account={"0xabc123..." as `0x${string}`}
+            fid={1768n}
+            name="Alice"
+          />
+
+          <ReservePanel
+            account={"0xabc123..." as `0x${string}`}
+            fid={1768n}
+            name="Alice"
+            showAuctionIdInput
+          />
+        </MegaphoneProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
 ```
@@ -150,4 +155,6 @@ function App() {
 
 Both panels default to the non–rev share flow unless an API key (and referrer)
 is supplied; they expose `onSuccess` / `onError` callbacks and accept an
-existing `Megaphone` instance if you prefer not to use the provider.
+existing `Megaphone` instance if you prefer not to use the provider. For Base
+Sepolia testing, pass `isTestnet` to the provider or component-level
+`clientOptions`.
