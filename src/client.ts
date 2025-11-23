@@ -12,7 +12,7 @@ import {
   USDC_CONTRACT_ADDRESS,
   USDC_SEPOLIA_CONTRACT_ADDRESS
 } from "./constants";
-import { requestRevShareSignature } from "./internal/api";
+import { reportPreBuy, requestRevShareSignature } from "./internal/api";
 import {
   approveUsdc,
   readPreBuyAmount,
@@ -36,11 +36,17 @@ export class Megaphone {
   private readonly usdcAddress: Address;
   private readonly chainId: number;
   private readonly baseUrl: string;
+  private readonly operatorFid: bigint;
 
-  constructor(options: MegaphoneOptions = {}) {
-    const { apiKey, isTestnet = false } = options;
+  constructor(options: MegaphoneOptions) {
+    const { apiKey, isTestnet = false, operatorFid } = options;
+
+    if (operatorFid === undefined) {
+      throw new Error("operatorFid is required in MegaphoneOptions");
+    }
 
     this.apiKey = apiKey;
+    this.operatorFid = operatorFid;
     this.baseUrl = BASE_URL;
     this.contractAddress = isTestnet
       ? MEGAPHONE_SEPOLIA_CONTRACT_ADDRESS
@@ -84,7 +90,22 @@ export class Megaphone {
       chainId: this.chainId
     });
 
-    return receipt.status === "success";
+    const success = receipt.status === "success";
+
+    if (success) {
+      // Report the pre-buy to the backend
+      await reportPreBuy({
+        baseUrl: this.baseUrl,
+        auctionId,
+        fid,
+        amount,
+        txHash: receipt.transactionHash,
+        username: name,
+        referrer: this.operatorFid
+      });
+    }
+
+    return success;
   }
 
   async preBuyWithRevShare(
@@ -129,7 +150,22 @@ export class Megaphone {
       chainId: this.chainId
     });
 
-    return receipt.status === "success";
+    const success = receipt.status === "success";
+
+    if (success) {
+      // Report the pre-buy to the backend
+      await reportPreBuy({
+        baseUrl: this.baseUrl,
+        auctionId,
+        fid,
+        amount,
+        txHash: receipt.transactionHash,
+        username: name,
+        referrer: this.operatorFid
+      });
+    }
+
+    return success;
   }
 
   async getAvailableDays(

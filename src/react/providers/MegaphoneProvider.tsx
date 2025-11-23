@@ -15,7 +15,7 @@ export function MegaphoneProvider({
   const value = useMemo(() => {
     const client = new Megaphone(options);
     return { client };
-  }, [apiKey, options.isTestnet]);
+  }, [apiKey, options.isTestnet, options.operatorFid]);
 
   return (
     <MegaphoneContext.Provider value={value}>

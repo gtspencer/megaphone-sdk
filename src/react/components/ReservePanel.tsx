@@ -39,7 +39,9 @@ export interface ReservePanelProps {
 }
 
 function defaultFormatAmount(amount: bigint): string {
-  return formatUnits(amount, 6);
+  const formatted = formatUnits(amount, 6);
+  const num = parseFloat(formatted);
+  return num.toFixed(2);
 }
 
 function parseAuctionId(value: string): bigint | null {
@@ -82,7 +84,8 @@ export function ReservePanel({
   const megaphone = useMegaphoneClient({
     client,
     apiKey: clientOptions?.apiKey,
-    isTestnet: effectiveIsTestnet
+    isTestnet: effectiveIsTestnet,
+    operatorFid: clientOptions?.operatorFid
   });
 
   const { amount, loading: amountLoading, error: amountError } =

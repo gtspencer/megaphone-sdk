@@ -35,7 +35,9 @@ export interface TimelinePanelProps {
 }
 
 function defaultFormatAmount(amount: bigint): string {
-  return formatUnits(amount, 6);
+  const formatted = formatUnits(amount, 6);
+  const num = parseFloat(formatted);
+  return num.toFixed(2);
 }
 
 export function TimelinePanel({
@@ -66,7 +68,8 @@ export function TimelinePanel({
   const megaphone = useMegaphoneClient({
     client,
     apiKey: clientOptions?.apiKey,
-    isTestnet: effectiveIsTestnet
+    isTestnet: effectiveIsTestnet,
+    operatorFid: clientOptions?.operatorFid
   });
 
   const preBuyDataParams = useMemo(
@@ -167,7 +170,7 @@ export function TimelinePanel({
       return formatButtonLabel(amount);
     }
     if (amountLabel) {
-      return `Reserve the Megaphone for ${amountLabel}`;
+      return `Reserve the Megaphone for $${amountLabel}`;
     }
     return loadingText;
   }, [buttonText, amount, formatButtonLabel, amountLabel, loadingText]);
@@ -266,7 +269,7 @@ export function TimelinePanel({
                       onClick={onSelect}
                       disabled={isBought}
                       style={{
-                        padding: "0.5rem 0.75rem",
+                        padding: "0.375rem 0.5rem",
                         borderRadius: "0.5rem",
                         border: selected
                           ? "2px solid #000"
@@ -282,14 +285,14 @@ export function TimelinePanel({
                             ? "#999"
                             : "inherit",
                         cursor: isBought ? "not-allowed" : "pointer",
-                        opacity: isBought ? 0.6 : 1
+                        opacity: isBought ? 0.6 : 1,
+                        fontSize: "0.875rem"
                       }}
                     >
-                      <div>{day.date.toLocaleDateString()}</div>
-                      <small style={{ display: "block" }}>
-                        Auction #{day.auctionId.toString()}
-                        {isBought ? " (Sold)" : ""}
-                      </small>
+                      {day.date.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric"
+                      })}
                     </button>
                   )}
                 </li>
@@ -303,6 +306,18 @@ export function TimelinePanel({
         type="button"
         disabled={!readyToReserve}
         onClick={handleReserve}
+        style={{
+          padding: "0.75rem 1.5rem",
+          borderRadius: "0.5rem",
+          border: "1px solid #000",
+          backgroundColor: readyToReserve ? "#000" : "#ccc",
+          color: readyToReserve ? "#fff" : "#666",
+          cursor: readyToReserve ? "pointer" : "not-allowed",
+          fontSize: "1rem",
+          fontWeight: "500",
+          width: "100%",
+          transition: "background-color 0.2s, color 0.2s"
+        }}
       >
         {isLoading ? loadingText : computedButtonLabel}
       </button>

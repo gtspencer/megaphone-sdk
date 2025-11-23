@@ -12,6 +12,7 @@ interface PreBuyBaseParams {
 export interface MegaphoneOptions {
   apiKey?: string;
   isTestnet?: boolean;
+  operatorFid: bigint;
 }
 
 export interface PreBuyParams extends PreBuyBaseParams {}
