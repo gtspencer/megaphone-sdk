@@ -21,16 +21,19 @@ export function Logo({
   alt = "Logo"
 }: LogoProps) {
   const logoSvg = white ? logoWhiteSvg : logoBlackSvg;
-  const logoSrc = `data:image/svg+xml,${encodeURIComponent(logoSvg)}`;
 
   return (
-    <img
-      src={logoSrc}
-      alt={alt}
-      width={width}
-      height={height}
+    <div
       className={className}
-      style={style}
+      style={{
+        width,
+        height,
+        display: "inline-block",
+        ...style
+      }}
+      role="img"
+      aria-label={alt}
+      dangerouslySetInnerHTML={{ __html: logoSvg }}
     />
   );
 }

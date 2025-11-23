@@ -14,6 +14,7 @@ export interface MegaphoneOptions {
   isTestnet?: boolean;
   operatorFid: bigint;
   debug?: boolean;
+  referrer?: Address;
 }
 
 export interface PreBuyParams extends PreBuyBaseParams {}
@@ -44,5 +45,10 @@ export interface PreBuyData {
 
 export interface GetPreBuyDataParams {
   config: Config;
+}
+
+export interface RecordIncentivizedInteractionParams {
+  userFid: bigint;
+  interactionLevel: number;
 }
 

@@ -5,5 +5,4 @@ export * from "./hooks/usePreBuyAmount";
 export * from "./hooks/usePreBuyData";
 export * from "./hooks/useAvailableDays";
 export * from "./components/Logo";
-export * from "./components/ReservePanel";
 export * from "./components/TimelinePanel";

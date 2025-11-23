@@ -23,30 +23,46 @@ export interface ReportPreBuyRequest {
 export async function requestRevShareSignature(
   params: RevShareSignatureRequest
 ): Promise<Hex> {
-  const endpoint = new URL("/rev-share/signature", params.baseUrl).toString();
+  const endpoint = new URL(
+    "/api/pre-buy/generate-signature",
+    params.baseUrl
+  ).toString();
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": params.apiKey
+      "X-API-Key": params.apiKey
     },
     body: JSON.stringify({
-      amount: params.amount.toString(),
-      auctionId: params.auctionId.toString(),
-      fid: params.fid.toString(),
-      referrer: params.referrer
+      referrer: params.referrer,
+      auctionId: Number(params.auctionId),
+      amount: Number(params.amount),
+      fid: Number(params.fid)
     })
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage: string;
+    try {
+      const errorJson = JSON.parse(errorText) as { error?: string };
+      errorMessage = errorJson.error ?? `HTTP ${response.status}`;
+    } catch {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    }
     throw new Error(
-      `Failed to fetch rev share signature: ${response.status} ${response.statusText}`
+      `Failed to fetch rev share signature: ${errorMessage}`
     );
   }
 
   const payload = (await response.json()) as {
+    success?: boolean;
     signature?: string;
+    referrer?: string;
+    auctionId?: number;
+    amount?: number;
+    fid?: number;
   };
 
   if (typeof payload?.signature !== "string") {
@@ -96,5 +112,71 @@ export async function reportPreBuy(
       `Failed to report pre-buy: ${response.status} ${response.statusText}`
     );
   }
+}
+
+export interface RecordIncentivizedInteractionRequest {
+  baseUrl: string;
+  apiKey: string;
+  userFid: bigint;
+  interactionLevel: number;
+}
+
+export interface RecordIncentivizedInteractionResponse {
+  success: boolean;
+  fid: number;
+  auctionId: number;
+  interactionLevel: number;
+}
+
+export async function recordIncentivizedInteraction(
+  params: RecordIncentivizedInteractionRequest
+): Promise<RecordIncentivizedInteractionResponse> {
+  const endpoint = new URL(
+    "/api/incentivized-interaction",
+    params.baseUrl
+  ).toString();
+
+  // Validate interactionLevel
+  if (
+    !Number.isInteger(params.interactionLevel) ||
+    params.interactionLevel < 1 ||
+    params.interactionLevel > 3
+  ) {
+    throw new Error("interactionLevel must be an integer between 1 and 3");
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": params.apiKey
+    },
+    body: JSON.stringify({
+      fid: Number(params.userFid),
+      interactionLevel: params.interactionLevel
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage: string;
+    try {
+      const errorJson = JSON.parse(errorText) as { error?: string };
+      errorMessage = errorJson.error ?? `HTTP ${response.status}`;
+    } catch {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(
+      `Failed to record incentivized interaction: ${errorMessage}`
+    );
+  }
+
+  const payload = (await response.json()) as RecordIncentivizedInteractionResponse;
+
+  if (!payload.success) {
+    throw new Error("Incentivized interaction recording returned unsuccessful response");
+  }
+
+  return payload;
 }
 

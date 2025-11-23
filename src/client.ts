@@ -12,7 +12,11 @@ import {
   USDC_CONTRACT_ADDRESS,
   USDC_SEPOLIA_CONTRACT_ADDRESS
 } from "./constants";
-import { reportPreBuy, requestRevShareSignature } from "./internal/api";
+import {
+  recordIncentivizedInteraction,
+  reportPreBuy,
+  requestRevShareSignature
+} from "./internal/api";
 import {
   approveUsdc,
   readPreBuyAmount,
@@ -27,7 +31,8 @@ import type {
   MegaphoneOptions,
   PreBuyData,
   PreBuyParams,
-  PreBuyWithRevShareParams
+  PreBuyWithRevShareParams,
+  RecordIncentivizedInteractionParams
 } from "./types";
 
 export class Megaphone {
@@ -223,6 +228,20 @@ export class Megaphone {
   async getPreBuyAmount(config: Config): Promise<bigint> {
     const context = this.createContractContext(config);
     return readPreBuyAmount(context);
+  }
+
+  async recordIncentivizedInteraction(
+    params: RecordIncentivizedInteractionParams
+  ): Promise<{ success: boolean; fid: number; auctionId: number; interactionLevel: number }> {
+    const apiKey = this.requireApiKey();
+    const { userFid, interactionLevel } = params;
+
+    return recordIncentivizedInteraction({
+      baseUrl: this.baseUrl,
+      apiKey,
+      userFid,
+      interactionLevel
+    });
   }
 
   private createContractContext(config: Config): ContractContext {

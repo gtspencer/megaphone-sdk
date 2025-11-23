@@ -1,6 +1,6 @@
 {
   "name": "0xmegaphone-sdk",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "",
   "type": "module",
   "main": "./dist/index.cjs",
