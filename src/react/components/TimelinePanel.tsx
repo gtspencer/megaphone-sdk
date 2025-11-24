@@ -259,8 +259,9 @@ export function TimelinePanel({
             {days.map((day) => {
               const selected = day.auctionId === selectedAuctionId;
               const isBought = !day.available;
+              const isSuccessfullyPurchased = successfulAuctionId === day.auctionId;
               const onSelect = () => {
-                if (day.available) {
+                if (day.available && !isSuccessfullyPurchased) {
                   setSelectedAuctionId(day.auctionId);
                 }
               };
@@ -273,7 +274,7 @@ export function TimelinePanel({
                     <button
                       type="button"
                       onClick={onSelect}
-                      disabled={!day.available}
+                      disabled={!day.available || isSuccessfullyPurchased}
                       style={{
                         padding: "0.375rem 0.5rem",
                         borderRadius: "0.5rem",
@@ -282,16 +283,16 @@ export function TimelinePanel({
                           : "1px solid #ccc",
                         backgroundColor: selected
                           ? "#000"
-                          : !day.available
+                          : !day.available || isSuccessfullyPurchased
                             ? "#f0f0f0"
                             : "transparent",
                         color: selected
                           ? "#fff"
-                          : !day.available
+                          : !day.available || isSuccessfullyPurchased
                             ? "#999"
                             : "inherit",
-                        cursor: !day.available ? "not-allowed" : "pointer",
-                        opacity: !day.available ? 0.6 : 1,
+                        cursor: !day.available || isSuccessfullyPurchased ? "not-allowed" : "pointer",
+                        opacity: !day.available || isSuccessfullyPurchased ? 0.6 : 1,
                         fontSize: "0.875rem"
                       }}
                     >
