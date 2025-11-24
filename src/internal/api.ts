@@ -23,10 +23,7 @@ export interface ReportPreBuyRequest {
 export async function requestRevShareSignature(
   params: RevShareSignatureRequest
 ): Promise<Hex> {
-  const endpoint = new URL(
-    "/api/pre-buy/generate-signature",
-    params.baseUrl
-  ).toString();
+  const endpoint = `${params.baseUrl}/api/pre-buy/generate-signature`;
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -77,7 +74,8 @@ export async function requestRevShareSignature(
 export async function reportPreBuy(
   params: ReportPreBuyRequest
 ): Promise<void> {
-  const endpoint = new URL("/api/pre-buy/report-pre-buy", params.baseUrl).toString();
+  const endpoint = `${params.baseUrl}/api/pre-buy/report-pre-buy`;
+  console.log("[Megaphone SDK] reportPreBuy URL:", endpoint, "baseUrl:", params.baseUrl);
 
   const body: Record<string, unknown> = {
     auctionId: Number(params.auctionId),
@@ -131,10 +129,7 @@ export interface RecordIncentivizedInteractionResponse {
 export async function recordIncentivizedInteraction(
   params: RecordIncentivizedInteractionRequest
 ): Promise<RecordIncentivizedInteractionResponse> {
-  const endpoint = new URL(
-    "/api/incentivized-interaction",
-    params.baseUrl
-  ).toString();
+  const endpoint = `${params.baseUrl}/api/incentivized-interaction`;
 
   // Validate interactionLevel
   if (

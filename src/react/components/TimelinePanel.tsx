@@ -125,6 +125,7 @@ export function TimelinePanel({
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [successfulAuctionId, setSuccessfulAuctionId] = useState<bigint | null>(null);
 
   useEffect(() => {
     // Only select from available days
@@ -145,6 +146,13 @@ export function TimelinePanel({
       setSelectedAuctionId(availableDays[0]?.auctionId ?? null);
     }
   }, [days, selectedAuctionId]);
+
+  // Clear success message when days change (e.g., after refetch)
+  useEffect(() => {
+    if (successfulAuctionId && !days.find((day) => day.auctionId === successfulAuctionId)) {
+      setSuccessfulAuctionId(null);
+    }
+  }, [days, successfulAuctionId]);
 
   const amountLabel = useMemo(() => {
     if (!amount) {
@@ -216,6 +224,10 @@ export function TimelinePanel({
         throw new Error("Pre-buy transaction did not complete successfully.");
       }
 
+      // Set successful auction ID to show success message
+      setSuccessfulAuctionId(auctionId);
+      setSubmitError(null);
+      
       onSuccess?.({ auctionId, success });
     } catch (error) {
       const message = simplifyErrorMessage(error, debug);
@@ -321,6 +333,23 @@ export function TimelinePanel({
           {activeError}
         </p>
       ) : null}
+      
+      {successfulAuctionId ? (() => {
+        const successfulDay = days.find((day) => day.auctionId === successfulAuctionId);
+        if (!successfulDay) return null;
+        
+        const formattedDate = successfulDay.date.toLocaleDateString(undefined, {
+          month: "long",
+          day: "numeric",
+          year: "numeric"
+        });
+        
+        return (
+          <p style={{ color: "green", marginTop: "0.5rem", fontWeight: "500" }}>
+            📢 Success! Visit the Megaphone app on {formattedDate}
+          </p>
+        );
+      })() : null}
     </div>
   );
 }
