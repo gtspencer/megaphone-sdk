@@ -11,6 +11,7 @@ This implementation includes a core sdk, and a react sub-package.
 
 ### React
 - Pre buy timeline view
+- Logo
 
 ## Installation
 
